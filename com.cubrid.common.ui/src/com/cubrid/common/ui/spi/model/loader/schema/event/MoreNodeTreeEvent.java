@@ -1,6 +1,5 @@
 /*
- * Copyright (C) 2009 Search Solution Corporation. All rights reserved by Search
- * Solution.
+ * Copyright (C) 2018 CUBRID Co., Ltd. All rights reserved by CUBRID Co., Ltd.
  * 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met: -
@@ -25,57 +24,49 @@
  * POSSIBILITY OF SUCH DAMAGE.
  * 
  */
-package com.cubrid.common.ui.query.action;
+package com.cubrid.common.ui.spi.model.loader.schema.event;
 
-import org.eclipse.jface.action.Action;
+import org.eclipse.jface.viewers.AbstractTreeViewer;
+import org.eclipse.jface.viewers.ITreeViewerListener;
+import org.eclipse.jface.viewers.TreeExpansionEvent;
+import org.eclipse.swt.widgets.Display;
 
-import com.cubrid.common.ui.CommonUIPlugin;
-import com.cubrid.common.ui.query.Messages;
-import com.cubrid.common.ui.query.control.QueryExecuter;
-import com.cubrid.common.ui.query.control.QueryInfo;
-import com.cubrid.common.ui.spi.util.CommonUITool;
+import com.cubrid.common.ui.spi.model.DefaultSchemaNode;
+import com.cubrid.common.ui.spi.model.MoreTablesNode;
+import com.cubrid.common.ui.spi.model.NodeType;
 
 /**
- * 
- * next page action in query editor result
- * 
- * @author pangqiren
- * 
+ * An event class that adds new tables to the 'TreeViewer' 
+ * when the tree of the 'More Tables ...' node is expanded.
+ *
+ * @author hun-a
+ *
  */
-public class NextAction extends
-		Action {
-	private final QueryExecuter executer;
+public class MoreNodeTreeEvent implements ITreeViewerListener {
+	private final AbstractTreeViewer treeViewer;
 
-	/**
-	 * The constructor
-	 * 
-	 * @param result
-	 */
-	public NextAction(QueryExecuter result) {
-		super(Messages.qedit_nextpage);
-		setId("NextAction");
-		setImageDescriptor(CommonUIPlugin.getImageDescriptor("icons/queryeditor/query_page_next.png"));
-		setDisabledImageDescriptor(CommonUIPlugin.getImageDescriptor("icons/queryeditor/query_page_next_disabled.png"));
-		setToolTipText(Messages.qedit_nextpage);
-		this.executer = result;
+	public MoreNodeTreeEvent(AbstractTreeViewer viewer) {
+		this.treeViewer = viewer;
 	}
 
-	/**
-	 * @see org.eclipse.jface.action.Action#run()
-	 */
-	public void run() {
-		if (executer.isModifiedResult()) {
-			CommonUITool.openErrorBox(Messages.errModifiedNotMoving);
-			return;
-		}
+	@Override
+	public void treeExpanded(TreeExpansionEvent event) {
+		final Object element = event.getElement();
+		if (element instanceof DefaultSchemaNode
+				&& ((DefaultSchemaNode) element).getType().equals(NodeType.MORE)) {
+			Display.getCurrent().asyncExec(new Runnable() {
 
-		if (executer.tblResult != null) {
-			executer.tblResult.forceFocus();
+				@Override
+				public void run() {
+					MoreTablesNode model = new MoreTablesNode(
+							treeViewer, (DefaultSchemaNode) element);
+					model.expandMoreTables();
+				}
+			});
 		}
+	}
 
-		QueryInfo queryInfo = executer.getQueryInfo();
-		queryInfo.setCurrentPage(queryInfo.getCurrentPage() + 1);
-		executer.makeItem();
-		executer.updateActions();
+	@Override
+	public void treeCollapsed(TreeExpansionEvent event) {
 	}
 }
